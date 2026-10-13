@@ -8,6 +8,8 @@ struct LaunchOptions {
     var snapshotDirectory: URL?
     /// Accept test commands over distributed notifications.
     var debugIPC = false
+    /// Where to look for releases (tests point this at a local file).
+    var updateFeed = Updater.defaultFeed
 
     init(arguments: [String]) {
         var index = 1
@@ -23,6 +25,9 @@ struct LaunchOptions {
                 index += 1
             case "--debug-ipc":
                 debugIPC = true
+            case "--update-feed":
+                if let value, let url = URL(string: value) { updateFeed = url }
+                index += 1
             default:
                 break
             }
@@ -41,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = Self.makeMainMenu()
-        let state = AppState(configURL: options.configURL)
+        let state = AppState(configURL: options.configURL, updateFeed: options.updateFeed)
         self.state = state
         state.start()
         installStatusItem()
@@ -51,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         if options.debugIPC {
+            state.updater.presentsAlerts = false
             DebugIPC.install(state: state)
             return  // test runs shouldn't open windows
         }
@@ -99,6 +105,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
         let clients = state.monitor.clients
 
+        if case .available(let version) = state.updater.status {
+            menu.addItem(ClosureMenuItem("Install EVESup \(version)…") { [weak self] in self?.state.updater.installLatest() })
+            menu.addItem(.separator())
+        }
+
         let header = NSMenuItem(title: clients.isEmpty ? "No EVE clients running" : "Switch to", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
@@ -125,6 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = ClosureMenuItem("Settings…") { [weak self] in self?.showSettings() }
         settings.keyEquivalent = ","
         menu.addItem(settings)
+        menu.addItem(ClosureMenuItem("Check for Updates…") { [weak self] in self?.state.updater.check(userInitiated: true) })
         menu.addItem(NSMenuItem(title: "Quit EVESup", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 

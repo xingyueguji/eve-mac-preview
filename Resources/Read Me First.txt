@@ -29,6 +29,12 @@ USE
 Tip: set EVE's Window Mode to "Fixed Window" for game windows without a title bar.
 
 
+UPDATES
+
+EVESup checks for new versions itself. Use "Check for Updates..." in its menu, or
+General > Updates. Installing an update keeps your settings and permissions.
+
+
 NOTES
 
 - Requires macOS 14 or later.

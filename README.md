@@ -17,6 +17,12 @@ Needs macOS 14 or later, on Apple Silicon or Intel.
 2. Open it. EVESup isn't signed by a registered Apple developer, so macOS blocks the first launch. Click **Done**, then go to System Settings → Privacy & Security, scroll down, and click **Open Anyway** next to EVESup. Or run `xattr -dr com.apple.quarantine /Applications/EVESup.app` in Terminal.
 3. EVESup appears as an icon in the menu bar (no Dock icon). Click it for the client list and **Settings…**.
 
+### Updating
+
+From version 0.2.0 on, EVESup updates itself. It checks GitHub at launch and once a day, without interrupting you. When an update is available, **Install EVESup x.y.z…** appears in the menu-bar menu and under General → Updates. Install it there, or use **Check for Updates…** any time. EVESup downloads the update, makes sure it's signed with the same certificate, swaps itself out and restarts. Your settings and macOS permissions carry over.
+
+Versions before 0.2.0 can't update themselves: install 0.2.0 from its DMG once, and allow the permissions one last time.
+
 ## Build from source
 
 Needs Xcode (or the Swift toolchain).
@@ -110,7 +116,23 @@ Pick the **Copy from** character and/or account, tick the targets (all others by
 | Log (switches, failures) | `~/Library/Logs/EVESup/EVESup.log` |
 | Settings-sync backups | `~/Library/Application Support/EVESup/Backups/` |
 
+Update checks ask GitHub (`api.github.com`) for the latest release of this project. Nothing else is sent.
+
 If a key press doesn't switch clients, the log says which client EVESup picked and whether the switch was confirmed.
+
+## Releasing
+
+Every release must be signed with the **EVESup Signing** certificate. Updates are only accepted if their signature matches, and macOS keeps permissions across updates because of it. The certificate lives in the maintainer's login keychain, with a password-protected `.p12` backup kept outside this repository. Never commit it.
+
+1. Bump `CFBundleShortVersionString` (and `CFBundleVersion`) in `Resources/EVESup-Info.plist`.
+2. Run `./scripts/package.sh`. It builds and signs a universal app, then writes `dist/EVESup-<version>.dmg` (for new installs) and `dist/EVESup-<version>.zip` (what the in-app updater downloads).
+3. Commit and push, then publish both files as a release tagged `v<version>`:
+
+```bash
+gh release create v0.2.0 dist/EVESup-0.2.0.dmg dist/EVESup-0.2.0.zip --title "EVESup 0.2.0" --notes-file notes.md
+```
+
+On a new Mac, restore the certificate first by double-clicking the `.p12` backup. Without the same certificate, existing copies can't install your updates.
 
 ## Development
 

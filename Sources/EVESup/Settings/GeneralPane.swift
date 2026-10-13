@@ -63,6 +63,30 @@ struct GeneralPane: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section {
+                LabeledContent("Version") {
+                    Text(state.updater.currentVersion).monospacedDigit()
+                }
+                Toggle("Check for updates automatically", isOn: $state.config.checksForUpdates)
+                HStack(spacing: 10) {
+                    UpdateStatusLabel(status: state.updater.status)
+                    Spacer()
+                    if case .available = state.updater.status {
+                        Button(state.updater.canUpdateItself ? "Install and Relaunch" : "Open Download Page") {
+                            state.updater.installLatest()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    Button("Check Now") { state.updater.check(userInitiated: true, alerts: false) }
+                        .disabled(state.updater.status == .checking || state.updater.status == .downloading || state.updater.status == .installing)
+                }
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("Updates come from the project's GitHub releases. EVESup only installs an update signed with the same certificate as this copy, and your settings and permissions carry over.")
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Files") {
                 FileRow(title: "Settings file", url: state.configURL)
                 FileRow(title: "Log file", url: Log.fileURL)
@@ -120,6 +144,29 @@ private struct PermissionRow: View {
                 Button("Allow…", action: request)
                 Button("Open Settings", action: openSettings)
             }
+        }
+    }
+}
+
+private struct UpdateStatusLabel: View {
+    let status: Updater.Status
+
+    var body: some View {
+        switch status {
+        case .idle:
+            Text("Not checked yet").foregroundStyle(.secondary)
+        case .checking:
+            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Checking…") }
+        case .upToDate:
+            Label("Up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+        case .available(let version):
+            Label("Version \(version) is available", systemImage: "arrow.down.circle.fill").foregroundStyle(.blue)
+        case .downloading:
+            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Downloading…") }
+        case .installing:
+            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Installing…") }
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         }
     }
 }

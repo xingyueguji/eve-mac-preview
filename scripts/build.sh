@@ -12,6 +12,11 @@ swift build -c release --product EVESup
 if $with_mock; then swift build -c release --product MockEVEClient; fi
 bin="$(swift build -c release --show-bin-path)"
 
+# Sign with the release certificate when it's in the keychain, so macOS keeps
+# this build's permissions across rebuilds; otherwise fall back to ad-hoc.
+identity="${EVESUP_SIGN_IDENTITY:-EVESup Signing}"
+if security find-certificate -c "$identity" >/dev/null 2>&1; then sign="$identity"; else sign="-"; fi
+
 make_app() {
   local name="$1"
   local app="build/$name.app"
@@ -22,9 +27,7 @@ make_app() {
   mv -f "$app/Contents/MacOS/$name.new" "$app/Contents/MacOS/$name"
   cp "Resources/$name-Info.plist" "$app/Contents/Info.plist"
   if [[ -f "Resources/$name.icns" ]]; then cp "Resources/$name.icns" "$app/Contents/Resources/AppIcon.icns"; fi
-  # Ad-hoc signature: enough to run locally. macOS ties permissions to it,
-  # so after a rebuild Screen Recording has to be allowed again.
-  codesign --force --sign - "$app"
+  codesign --force --sign "$sign" "$app"
   echo "Built $app"
 }
 

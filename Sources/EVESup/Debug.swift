@@ -29,6 +29,10 @@ extension AppState {
             cycle(groupID: config.cycleGroups[index].id, direction: parts[2] == "prev" ? .backward : .forward)
         case "jump":
             jump(to: parts.dropFirst().joined(separator: " "))
+        case "update-check":
+            updater.check(userInitiated: false)
+        case "update-install":
+            updater.installLatest()
         case "dump":
             guard parts.count >= 2 else { return }
             writeDebugDump(to: URL(fileURLWithPath: parts.dropFirst().joined(separator: " ")))
@@ -55,6 +59,9 @@ extension AppState {
             "screenRecording": permissions.screenRecording,
             "accessibility": permissions.accessibility,
             "excludedPIDs": excludedPIDs.map { Int($0) }.sorted(),
+            "version": updater.currentVersion,
+            "canUpdateItself": updater.canUpdateItself,
+            "updateStatus": String(describing: updater.status),
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dump, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: url)

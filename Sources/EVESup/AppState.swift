@@ -20,15 +20,19 @@ final class AppState: ObservableObject {
     let isFirstLaunch: Bool
     private(set) var previews: PreviewManager?
     private(set) lazy var syncModel = SyncModel(state: self)
+    private(set) lazy var updater = Updater(state: self, feed: updateFeed)
+    private let updateFeed: URL
 
     private var saveWork: DispatchWorkItem?
     private var hotkeySuspensions = 0
     private var permissionTimer: Timer?
     private var monitorForwarding: AnyCancellable?
+    private var updaterForwarding: AnyCancellable?
 
-    init(configURL: URL) {
+    init(configURL: URL, updateFeed: URL = Updater.defaultFeed) {
         let loaded = ConfigStore.load(from: configURL)
         self.configURL = configURL
+        self.updateFeed = updateFeed
         self.config = loaded.config
         self.isFirstLaunch = !loaded.existed
         self.monitor = ClientMonitor(extraApps: Set(loaded.config.clientBundleIDs))
@@ -53,6 +57,8 @@ final class AppState: ObservableObject {
         // Learn the names of characters in EVE's settings folder, so they can be
         // added to cycle groups before they've been logged in with EVESup running.
         syncModel.reload()
+        updaterForwarding = updater.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        updater.start()
         Log.info("EVESup started (config \(configURL.path)); screen recording: \(permissions.screenRecording), accessibility: \(permissions.accessibility)")
     }
 

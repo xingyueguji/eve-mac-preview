@@ -18,11 +18,14 @@ public struct AppConfig: Codable, Equatable {
     /// Characters seen in running clients, offered when building groups.
     public var knownCharacters: [String] = []
     public var sync = SyncSettings()
+    /// Look for a newer release on GitHub at launch and once a day.
+    public var checksForUpdates = true
 
     public init() {}
 
     enum CodingKeys: String, CodingKey {
         case clientBundleIDs, cycleGroups, characterHotkeys, previews, thumbnailFrames, knownCharacters, sync
+        case checksForUpdates
     }
 
     public init(from decoder: Decoder) throws {
@@ -35,6 +38,7 @@ public struct AppConfig: Codable, Equatable {
         thumbnailFrames = c.value(.thumbnailFrames, default: d.thumbnailFrames)
         knownCharacters = c.value(.knownCharacters, default: d.knownCharacters)
         sync = c.value(.sync, default: d.sync)
+        checksForUpdates = c.value(.checksForUpdates, default: d.checksForUpdates)
     }
 }
 
