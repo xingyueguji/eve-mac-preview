@@ -56,6 +56,7 @@ Settings → **Cycle Groups**:
 
 1. Click **+** to add a group and give it a name (e.g. "DPS", "Logi").
 2. Click the **Next client** button and press a key. Do the same for **Previous client**. Esc cancels, ⌫ clears. F13–F20 are good choices if you bind them to mouse or keypad buttons.
+   - **Mouse side buttons** work too: while the button says "Press key or button…", click the side button with the pointer over the settings window. It shows up as "Mouse 4" or "Mouse 5". Allow **Accessibility** in General so EVE doesn't also receive the click.
 3. Add characters with **Add Character**, **Add All Logged-In**, or by typing a name. Use the arrows to set the order.
 
 Next goes down the list and wraps around, and previous goes up. Characters who aren't logged in are skipped. A group with no characters cycles through every open client alphabetically, which is handy at character select. If you're not on a client in the group, next starts at the top and previous at the bottom.
@@ -80,7 +81,7 @@ Names in **Add Character** come from clients you've had logged in and from your 
 Settings → **Previews** has:
 
 - **Previews:** frame rate, and showing them on every desktop.
-- **Size:** width and height, applied to every preview.
+- **Size:** width and height, applied to every preview. Type a value, use − / +, or drag the slider.
 - **Position:** **Snap to grid** with its own grid width and height (default 20 pt). Dragging moves a preview in grid steps and corner-resizing snaps to whole cells, so previews line up without fine adjustment. **Align All Previews to Grid** tidies up existing ones, **Rearrange Previews** lines them up in rows, and you can lock positions.
 - **Appearance:** borderless previews (just the picture), opacity when not in front, and the highlight on the client you're on.
 - **Character name:** font, size, bold, color, and how dark the box behind the name is, with a live sample. These apply to every preview.

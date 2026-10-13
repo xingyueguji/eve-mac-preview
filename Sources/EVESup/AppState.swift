@@ -105,6 +105,7 @@ final class AppState: ObservableObject {
     func suspendHotkeys() {
         hotkeySuspensions += 1
         HotkeyCenter.shared.unregisterAll()
+        MouseButtonCenter.shared.unregisterAll()
     }
 
     func resumeHotkeys() {
@@ -113,8 +114,10 @@ final class AppState: ObservableObject {
     }
 
     func registerHotkeys() {
-        let center = HotkeyCenter.shared
-        center.unregisterAll()
+        let keys = HotkeyCenter.shared
+        let mouse = MouseButtonCenter.shared
+        keys.unregisterAll()
+        mouse.unregisterAll()
         guard hotkeySuspensions == 0 else { return }
 
         var issues: [String: String] = [:]
@@ -127,11 +130,17 @@ final class AppState: ObservableObject {
                     if index == 0 { issues[id] = "Same key as \(other)" }
                     continue
                 }
-                if center.register(combo, action: action) {
+                if combo.isMouseButton {
+                    mouse.register(combo, action: action)
+                    owners[combo] = owner
+                } else if keys.register(combo, action: action) {
                     owners[combo] = owner
                 } else if index == 0 {
                     issues[id] = "macOS or another app already uses this key"
                 }
+            }
+            if hotkey.isMouseButton, issues[id] == nil, !mouse.hidesClicksFromApps {
+                issues[id] = "Works, but EVE also gets the click. Allow Accessibility in General to stop that."
             }
         }
 
@@ -222,7 +231,10 @@ final class AppState: ObservableObject {
     private func refreshPermissions() {
         let current = PermissionStatus.current()
         guard current != permissions else { return }
+        let accessibilityChanged = current.accessibility != permissions.accessibility
         permissions = current
+        // Mouse-button shortcuts can only hide clicks from EVE with Accessibility.
+        if accessibilityChanged { registerHotkeys() }
         Log.info("permissions changed; screen recording: \(current.screenRecording), accessibility: \(current.accessibility)")
         monitor.refresh()
         previews?.update()

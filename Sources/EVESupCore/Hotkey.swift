@@ -1,15 +1,26 @@
 import Foundation
 
-/// A global keyboard shortcut, stored with the Carbon virtual key code and
-/// modifier flags that `RegisterEventHotKey` expects.
+/// A global shortcut: a keyboard key (with the Carbon virtual key code and
+/// modifier flags that `RegisterEventHotKey` expects) or a mouse button.
 public struct Hotkey: Codable, Hashable, Sendable {
     public var keyCode: UInt32
     public var modifiers: UInt32
+    /// Set for mouse-button shortcuts: the button number as macOS reports it
+    /// (2 is the middle button, 3 and 4 the usual side buttons). `keyCode` is unused then.
+    public var mouseButton: Int?
 
     public init(keyCode: UInt32, modifiers: UInt32 = 0) {
         self.keyCode = keyCode
         self.modifiers = modifiers & Hotkey.allModifiers
     }
+
+    public init(mouseButton: Int, modifiers: UInt32 = 0) {
+        keyCode = 0
+        self.modifiers = modifiers & Hotkey.allModifiers
+        self.mouseButton = mouseButton
+    }
+
+    public var isMouseButton: Bool { mouseButton != nil }
 
     // Carbon modifier masks (HIToolbox/Events.h), repeated here so this target doesn't need Carbon.
     public static let command: UInt32 = 0x0100
@@ -30,6 +41,8 @@ public struct Hotkey: Codable, Hashable, Sendable {
     /// A label such as "⌃⇧F14". `keyName` lets the app supply a name that
     /// matches the user's keyboard layout for letter and symbol keys.
     public func displayString(keyName: (UInt32) -> String? = { _ in nil }) -> String {
+        // Mice number buttons from 1 (left), so macOS's button 3 is "Mouse 4".
+        if let mouseButton { return modifierSymbols + "Mouse \(mouseButton + 1)" }
         let key = Hotkey.fixedKeyNames[keyCode] ?? keyName(keyCode) ?? Hotkey.ansiKeyNames[keyCode] ?? "Key \(keyCode)"
         return modifierSymbols + key
     }
@@ -37,10 +50,17 @@ public struct Hotkey: Codable, Hashable, Sendable {
     /// Keys that don't type text (F-keys, keypad, Home/End…), so they're fine without a modifier.
     public var isFunctionStyleKey: Bool { Hotkey.functionStyleKeys.contains(keyCode) }
 
+    private var hasRealModifier: Bool { modifiers & (Hotkey.control | Hotkey.option | Hotkey.command) != 0 }
+
     /// True when the shortcut would swallow ordinary typing everywhere,
     /// e.g. a bare letter or ⇧+letter.
     public var blocksTyping: Bool {
-        !isFunctionStyleKey && modifiers & (Hotkey.control | Hotkey.option | Hotkey.command) == 0
+        mouseButton == nil && !isFunctionStyleKey && !hasRealModifier
+    }
+
+    /// True for a plain middle click, which would stop middle-clicking working everywhere.
+    public var blocksMiddleClick: Bool {
+        mouseButton == 2 && !hasRealModifier
     }
 
     /// This hotkey plus every combination of ⌃ ⌥ ⇧ it doesn't already use, so it
@@ -48,9 +68,9 @@ public struct Hotkey: Codable, Hashable, Sendable {
     public func modifierVariants() -> [Hotkey] {
         let extras = [Hotkey.control, Hotkey.option, Hotkey.shift].filter { modifiers & $0 == 0 }
         return (0..<(1 << extras.count)).map { mask in
-            var mods = modifiers
-            for (bit, flag) in extras.enumerated() where mask & (1 << bit) != 0 { mods |= flag }
-            return Hotkey(keyCode: keyCode, modifiers: mods)
+            var variant = self
+            for (bit, flag) in extras.enumerated() where mask & (1 << bit) != 0 { variant.modifiers |= flag }
+            return variant
         }
     }
 }

@@ -18,7 +18,7 @@ struct GeneralPane: View {
                 )
                 PermissionRow(
                     title: "Accessibility (optional)",
-                    detail: "Used as a backup way to bring a client to the front, and to restore minimized clients.",
+                    detail: "Keeps mouse-button shortcuts from also clicking in EVE, is a backup way to bring a client to the front, and restores minimized clients.",
                     granted: state.permissions.accessibility,
                     request: Permissions.requestAccessibility,
                     openSettings: { Permissions.openSettings(anchor: "Privacy_Accessibility") }

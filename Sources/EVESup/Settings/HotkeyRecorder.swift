@@ -21,11 +21,13 @@ struct HotkeyRecorder: View {
                     Text(label)
                         .fontWeight(hotkey == nil || isRecording ? .regular : .semibold)
                         .foregroundStyle(hotkey == nil && !isRecording ? .secondary : .primary)
-                        .frame(minWidth: 112)
+                        .frame(minWidth: 150)
                 }
                 .buttonStyle(.bordered)
                 .tint(isRecording ? .accentColor : nil)
-                .help(isRecording ? "Press the key to use. Esc cancels, ⌫ clears." : "Click, then press a key")
+                .help(isRecording
+                      ? "Press the key, or click the mouse button with the pointer over this window. Esc cancels, ⌫ clears."
+                      : "Click, then press a key or a mouse side button")
 
                 if hotkey != nil, !isRecording {
                     Button {
@@ -50,7 +52,7 @@ struct HotkeyRecorder: View {
 
     private var label: String {
         if isRecording {
-            return heldModifiers == 0 ? "Press a key…" : Hotkey(keyCode: 0, modifiers: heldModifiers).modifierSymbols + "…"
+            return heldModifiers == 0 ? "Press key or button…" : Hotkey(keyCode: 0, modifiers: heldModifiers).modifierSymbols + "…"
         }
         return hotkey.map(KeyNames.display) ?? "Not set"
     }
@@ -65,7 +67,7 @@ struct HotkeyRecorder: View {
         isRecording = true
         // Our own hotkeys would swallow the key before this view sees it.
         state.suspendHotkeys()
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .otherMouseDown]) { event in
             handle(event)
             return nil
         }
@@ -75,6 +77,18 @@ struct HotkeyRecorder: View {
         let modifiers = KeyNames.carbonModifiers(from: event.modifierFlags)
         if event.type == .flagsChanged {
             heldModifiers = modifiers
+            return
+        }
+        if event.type == .otherMouseDown {
+            // Left and right clicks never arrive here; 2 is the middle button, 3+ are side buttons.
+            let candidate = Hotkey(mouseButton: event.buttonNumber, modifiers: modifiers)
+            if candidate.blocksMiddleClick {
+                hint = "Hold ⌃, ⌥ or ⌘ with the middle button: on its own it would stop middle-clicking working everywhere."
+                return
+            }
+            hint = nil
+            hotkey = candidate
+            stopRecording()
             return
         }
         let keyCode = UInt32(event.keyCode)

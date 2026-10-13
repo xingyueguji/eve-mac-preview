@@ -85,6 +85,27 @@ final class HotkeyTests: XCTestCase {
         XCTAssertFalse(Hotkey(keyCode: 0x00, modifiers: Hotkey.control).blocksTyping)
     }
 
+    func testMouseButtons() {
+        let back = Hotkey(mouseButton: 3)
+        XCTAssertEqual(back.displayString(), "Mouse 4")
+        XCTAssertEqual(Hotkey(mouseButton: 4, modifiers: Hotkey.control).displayString(), "⌃Mouse 5")
+        XCTAssertTrue(back.isMouseButton)
+        XCTAssertFalse(back.blocksTyping)
+        XCTAssertFalse(back.blocksMiddleClick)
+        XCTAssertTrue(Hotkey(mouseButton: 2).blocksMiddleClick)
+        XCTAssertFalse(Hotkey(mouseButton: 2, modifiers: Hotkey.option).blocksMiddleClick)
+        XCTAssertNotEqual(back, Hotkey(keyCode: 0))  // a mouse button is never the "A" key
+        XCTAssertTrue(back.modifierVariants().allSatisfy { $0.mouseButton == 3 })
+    }
+
+    func testMouseButtonSurvivesSavingAndOldKeysStillLoad() throws {
+        let saved = try JSONEncoder().encode([Hotkey(mouseButton: 3, modifiers: Hotkey.shift), Hotkey(keyCode: 0x6B)])
+        XCTAssertEqual(try JSONDecoder().decode([Hotkey].self, from: saved), [Hotkey(mouseButton: 3, modifiers: Hotkey.shift), Hotkey(keyCode: 0x6B)])
+        let old = try JSONDecoder().decode(Hotkey.self, from: Data(#"{"keyCode":107,"modifiers":0}"#.utf8))
+        XCTAssertEqual(old, Hotkey(keyCode: 107))
+        XCTAssertNil(old.mouseButton)
+    }
+
     func testModifierVariantsCoverEveryExtraCombination() {
         let variants = Hotkey(keyCode: 0x6B).modifierVariants()
         XCTAssertEqual(variants.count, 8)

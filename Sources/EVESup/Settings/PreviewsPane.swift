@@ -12,13 +12,7 @@ struct PreviewsPane: View {
             Section {
                 Toggle("Show previews", isOn: previews.isEnabled)
                 LabeledContent("Frame rate") {
-                    HStack {
-                        Slider(value: wholeNumbers(previews.framesPerSecond), in: 1...30)
-                            .frame(width: 220)
-                        Text("\(Int(current.framesPerSecond)) fps")
-                            .monospacedDigit()
-                            .frame(width: 52, alignment: .trailing)
-                    }
+                    NumberControl(value: previews.framesPerSecond, range: 1...30, step: 1, unit: "fps")
                 }
                 Toggle("Show on every desktop and over full-screen EVE", isOn: previews.showsOnAllSpaces)
             } header: {
@@ -34,12 +28,16 @@ struct PreviewsPane: View {
             }
 
             Section {
-                sizeSlider("Width", value: previews.defaultWidth, range: 100...640)
-                sizeSlider("Height", value: previews.defaultHeight, range: 60...400)
+                LabeledContent("Width") {
+                    NumberControl(value: previews.defaultWidth, range: 100...1280, step: 10, onCommit: state.applyDefaultThumbnailSize)
+                }
+                LabeledContent("Height") {
+                    NumberControl(value: previews.defaultHeight, range: 60...800, step: 10, onCommit: state.applyDefaultThumbnailSize)
+                }
             } header: {
                 Text("Size")
             } footer: {
-                Text("Changing the size resizes every preview. You can still resize one preview by dragging its bottom-right corner.")
+                Text("Type a size, use − / +, or drag the slider. Changing it resizes every preview; you can still resize one preview by dragging its bottom-right corner.")
                     .foregroundStyle(.secondary)
             }
 
@@ -48,12 +46,13 @@ struct PreviewsPane: View {
                     Text("Snap to grid")
                     Text("Dragging moves a preview in grid steps, and resizing snaps to whole cells, so previews line up without fine adjustment.")
                 }
-                LabeledContent("Grid size") {
-                    HStack(spacing: 18) {
-                        Stepper("Width \(Int(current.gridWidth)) pt", value: previews.gridWidth, in: 5...200, step: 5)
-                        Stepper("Height \(Int(current.gridHeight)) pt", value: previews.gridHeight, in: 5...200, step: 5)
+                Group {
+                    LabeledContent("Grid width") {
+                        NumberControl(value: previews.gridWidth, range: 5...200, step: 5, showsSlider: false)
                     }
-                    .monospacedDigit()
+                    LabeledContent("Grid height") {
+                        NumberControl(value: previews.gridHeight, range: 5...200, step: 5, showsSlider: false)
+                    }
                 }
                 .disabled(!current.snapsToGrid)
                 Toggle("Lock preview positions", isOn: previews.locksPositions)
@@ -104,13 +103,7 @@ struct PreviewsPane: View {
                         }
                     }
                     LabeledContent("Text size") {
-                        HStack {
-                            Slider(value: wholeNumbers(previews.label.fontSize), in: 8...32)
-                                .frame(width: 220)
-                            Text("\(Int(current.label.fontSize)) pt")
-                                .monospacedDigit()
-                                .frame(width: 52, alignment: .trailing)
-                        }
+                        NumberControl(value: previews.label.fontSize, range: 8...32, step: 1)
                     }
                     Toggle("Bold", isOn: previews.label.isBold)
                     ColorPicker("Text color", selection: color(\.label.color), supportsOpacity: false)
@@ -150,25 +143,6 @@ struct PreviewsPane: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Previews")
-    }
-
-    private func sizeSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
-        LabeledContent(title) {
-            HStack {
-                Slider(value: wholeNumbers(value), in: range) { editing in
-                    if !editing { state.applyDefaultThumbnailSize() }
-                }
-                .frame(width: 220)
-                Text("\(Int(value.wrappedValue)) pt")
-                    .monospacedDigit()
-                    .frame(width: 52, alignment: .trailing)
-            }
-        }
-    }
-
-    /// Rounds slider values. A stepped Slider would draw hundreds of tick marks.
-    private func wholeNumbers(_ value: Binding<Double>) -> Binding<Double> {
-        Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
     }
 
     private func color(_ keyPath: WritableKeyPath<PreviewSettings, RGBAColor>) -> Binding<Color> {
