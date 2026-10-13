@@ -1,0 +1,38 @@
+EVESup: live previews and client switching for EVE Online on Mac
+======================================================================
+
+INSTALL
+
+1. Drag EVESup into the Applications folder.
+
+2. Open it. macOS will say it can't check the app for malicious software,
+   because it isn't from the App Store or a registered Apple developer.
+   Click Done, then open System Settings > Privacy & Security, scroll down,
+   and click "Open Anyway" next to the EVESup message.
+   (Or run this in Terminal: xattr -dr com.apple.quarantine /Applications/EVESup.app)
+
+3. EVESup lives in the menu bar (no Dock icon). On first launch it opens its
+   settings on the General page. Allow Screen Recording there: it's needed to
+   read character names and show previews. Then click "Relaunch EVESup".
+
+
+USE
+
+- Cycle Groups: click +, name the group, click "Next client" / "Previous client"
+  and press a key, then add characters in the order you want to cycle.
+- Character Keys: one key that jumps straight to a character.
+- Previews: click a preview to switch to it, drag to move, drag the bottom-right
+  corner to resize, shift-click to skip that client while cycling.
+- Settings Sync: copy one character's or account's EVE settings over the others.
+  A backup is made first, and "Restore Backup" puts it back. EVE must be closed.
+
+Tip: set EVE's Window Mode to "Fixed Window" for game windows without a title bar.
+
+
+NOTES
+
+- Requires macOS 14 or later.
+- EVESup only shows previews and brings EVE windows to the front. It never
+  sends keystrokes or mouse clicks to EVE and doesn't modify the game.
+- EVE Online and the EVE logo are trademarks of CCP hf. EVESup is not
+  affiliated with or endorsed by CCP.
