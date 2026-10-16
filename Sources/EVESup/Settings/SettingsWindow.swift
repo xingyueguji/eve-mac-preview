@@ -28,14 +28,20 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 }
 
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
-    init(state: AppState) {
+    init(state: AppState, remembersFrame: Bool = true) {
         let root = SettingsRootView().environmentObject(state)
-        let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+        let hosting = NSHostingController(rootView: root)
+        // The user decides how big the window is; pages scroll when they don't
+        // fit. By default SwiftUI sizes the window to its content, so a long
+        // list could stretch it past the bottom of the screen.
+        hosting.sizingOptions = []
+        let window = NSWindow(contentViewController: hosting)
         window.title = "EVESup"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.setContentSize(NSSize(width: 980, height: 660))
-        window.contentMinSize = NSSize(width: 860, height: 540)
-        window.setFrameAutosaveName("EVESupSettings")
+        // Small enough for a 13-inch MacBook set to its largest text size, with the Dock showing.
+        window.contentMinSize = NSSize(width: 860, height: 480)
+        if remembersFrame { window.setFrameAutosaveName("EVESupSettings") }
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.delegate = self
@@ -44,9 +50,24 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     func present() {
-        if window?.isVisible != true { window?.center() }
+        guard let window else { return }
+        if !window.isVisible {
+            shrinkToFitScreen(window)
+            window.center()
+        }
         NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Keeps the size the user chose unless it's bigger than the screen, as
+    /// when it was saved on a larger display, or by a version that let long
+    /// lists stretch the window.
+    private func shrinkToFitScreen(_ window: NSWindow) {
+        guard let visible = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
+        var frame = window.frame
+        frame.size.width = min(frame.width, visible.width)
+        frame.size.height = min(frame.height, visible.height)
+        if frame.size != window.frame.size { window.setFrame(frame, display: false) }
     }
 }
 

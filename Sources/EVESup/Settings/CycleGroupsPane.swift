@@ -195,7 +195,7 @@ struct CycleGroupEditor: View {
             } header: {
                 Text("Keys")
             } footer: {
-                Text("EVE never receives these key presses; EVESup uses them to switch clients. F13–F20 work well if you bind them to mouse or keypad buttons.")
+                Text("EVE never receives these key presses; EVESup uses them to switch clients. F13 and F16–F19 work well if you bind them to mouse or keypad buttons. Avoid F14 and F15: macOS uses them for screen brightness.")
                     .foregroundStyle(.secondary)
             }
 

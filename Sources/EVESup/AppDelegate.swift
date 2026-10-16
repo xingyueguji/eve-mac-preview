@@ -6,10 +6,14 @@ struct LaunchOptions {
     var configURL = ConfigStore.defaultURL
     /// Render each settings page to a PNG in this folder, then quit.
     var snapshotDirectory: URL?
+    /// Window size for the snapshots, written `980x660`.
+    var snapshotSize: NSSize?
     /// Accept test commands over distributed notifications.
     var debugIPC = false
     /// Where to look for releases (tests point this at a local file).
     var updateFeed = Updater.defaultFeed
+    /// EVE's settings folder (tests point this at a made-up one).
+    var eveSettingsRoot = EVESettingsStore.defaultRoot
 
     init(arguments: [String]) {
         var index = 1
@@ -23,10 +27,17 @@ struct LaunchOptions {
             case "--snapshot":
                 if let value { snapshotDirectory = URL(fileURLWithPath: value) }
                 index += 1
+            case "--snapshot-size":
+                let numbers = (value ?? "").split(separator: "x").compactMap { Double($0) }
+                if numbers.count == 2 { snapshotSize = NSSize(width: numbers[0], height: numbers[1]) }
+                index += 1
             case "--debug-ipc":
                 debugIPC = true
             case "--update-feed":
                 if let value, let url = URL(string: value) { updateFeed = url }
+                index += 1
+            case "--eve-settings":
+                if let value { eveSettingsRoot = URL(fileURLWithPath: value, isDirectory: true) }
                 index += 1
             default:
                 break
@@ -46,13 +57,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = Self.makeMainMenu()
-        let state = AppState(configURL: options.configURL, updateFeed: options.updateFeed)
+        let state = AppState(configURL: options.configURL, updateFeed: options.updateFeed, eveSettingsRoot: options.eveSettingsRoot)
         self.state = state
         state.start()
         installStatusItem()
 
         if let directory = options.snapshotDirectory {
-            Snapshots.run(into: directory, delegate: self)
+            Snapshots.run(into: directory, size: options.snapshotSize, delegate: self)
             return
         }
         if options.debugIPC {
@@ -82,7 +93,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @discardableResult
     func makeSettingsWindowIfNeeded() -> NSWindow? {
-        if settingsController == nil { settingsController = SettingsWindowController(state: state) }
+        if settingsController == nil {
+            // Snapshot windows are resized for rendering; don't let that replace the size the user chose.
+            settingsController = SettingsWindowController(state: state, remembersFrame: options.snapshotDirectory == nil)
+        }
         return settingsController?.window
     }
 

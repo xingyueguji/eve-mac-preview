@@ -31,10 +31,12 @@ final class SyncModel: ObservableObject {
     @Published var status: Status?
 
     private unowned let state: AppState
+    let settingsRoot: URL
     let backupsRoot: URL
 
-    init(state: AppState, backupsRoot: URL = EVESettingsStore.defaultBackupsRoot) {
+    init(state: AppState, settingsRoot: URL = EVESettingsStore.defaultRoot, backupsRoot: URL = EVESettingsStore.defaultBackupsRoot) {
         self.state = state
+        self.settingsRoot = settingsRoot
         self.backupsRoot = backupsRoot
     }
 
@@ -43,7 +45,7 @@ final class SyncModel: ObservableObject {
     // MARK: Loading
 
     func reload() {
-        profiles = EVESettingsStore.discoverProfiles()
+        profiles = EVESettingsStore.discoverProfiles(root: settingsRoot)
         let preferred = state.config.sync.lastProfilePath
         let id = profiles.first { $0.id == preferred }?.id ?? profiles.first?.id
         if selectedProfileID != id {
@@ -255,7 +257,7 @@ struct SyncPane: View {
                 ContentUnavailableView {
                     Label("No EVE Settings Found", systemImage: "folder.badge.questionmark")
                 } description: {
-                    Text("Log in to EVE once on this Mac, then click Rescan. EVESup looks in \(EVESettingsStore.defaultRoot.path).")
+                    Text("Log in to EVE once on this Mac, then click Rescan. EVESup looks in \(model.settingsRoot.path).")
                 }
             } else {
                 HStack(alignment: .top, spacing: 16) {
@@ -373,12 +375,13 @@ private struct FileColumn: View {
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
+                // No fixedSize here: the split view measures pages at zero width, where
+                // never-truncated text stacks a letter per line and the page refuses to shrink.
                 Text(isCharacters
                      ? "Per-character settings: window layout, overview, chat windows and similar."
                      : "Account-wide settings, such as keyboard shortcuts.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
 
                 Picker("Copy from", selection: source) {
                     Text("Don't copy \(isCharacters ? "character" : "account") settings").tag(Int64?.none)
@@ -396,13 +399,14 @@ private struct FileColumn: View {
                 }
                 .buttonStyle(.link)
 
+                // Scrolls inside the window, so the buttons below stay in view however long it gets.
                 List {
                     ForEach(files) { file in
                         row(for: file)
                     }
                 }
                 .listStyle(.bordered(alternatesRowBackgrounds: true))
-                .frame(minHeight: 240)
+                .frame(minHeight: 80, maxHeight: .infinity)
             }
             .padding(6)
         } label: {

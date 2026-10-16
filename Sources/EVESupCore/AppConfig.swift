@@ -89,7 +89,7 @@ public struct CycleGroup: Codable, Equatable, Identifiable {
 
 public struct PreviewSettings: Codable, Equatable {
     public var isEnabled = true
-    public var framesPerSecond: Double = 15
+    public var framesPerSecond: Double = 10
     public var defaultWidth: Double = 288
     public var defaultHeight: Double = 180
     /// Opacity of previews for clients that aren't in front (0.2–1).

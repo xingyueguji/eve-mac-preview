@@ -71,9 +71,10 @@ extension AppState {
 
 /// `--snapshot <folder>`: renders every settings page (and a sample preview)
 /// to PNG files without showing anything on screen, then quits.
+/// `--snapshot-size 860x480` renders at that window size instead of a tall one.
 @MainActor
 enum Snapshots {
-    static func run(into directory: URL, delegate: AppDelegate) {
+    static func run(into directory: URL, size: NSSize?, delegate: AppDelegate) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         guard let window = delegate.makeSettingsWindowIfNeeded() else {
             NSApp.terminate(nil)
@@ -83,13 +84,17 @@ enum Snapshots {
         // the user is doing keeps focus.
         window.alphaValue = 0
         window.ignoresMouseEvents = true
-        // Tall enough that long pages render without scrolling.
-        window.setContentSize(NSSize(width: 980, height: 1900))
+        // By default, tall enough that long pages render without scrolling.
+        let requested = size ?? NSSize(width: 980, height: 1900)
+        window.setContentSize(requested)
         window.orderFrontRegardless()
+        // The window size after each page, to catch pages that resize the window.
+        var sizes = "requested \(Int(requested.width))x\(Int(requested.height))\n"
 
         var remaining = SettingsPane.allCases
         func next() {
             guard !remaining.isEmpty else {
+                try? sizes.write(to: directory.appendingPathComponent("window-sizes.txt"), atomically: true, encoding: .utf8)
                 renderSamplePreview(borderless: false, to: directory.appendingPathComponent("preview-framed.png"))
                 renderSamplePreview(borderless: true, to: directory.appendingPathComponent("preview-borderless.png"))
                 NSApp.terminate(nil)
@@ -100,6 +105,8 @@ enum Snapshots {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 MainActor.assumeIsolated {
                     guard let view = window.contentView else { return next() }
+                    let content = window.contentRect(forFrameRect: window.frame).size
+                    sizes += "\(pane.rawValue) \(Int(content.width))x\(Int(content.height)) (frame \(Int(window.frame.width))x\(Int(window.frame.height)))\n"
                     save(view, to: directory.appendingPathComponent("\(pane.rawValue).png"))
                     // Long pages: also capture the bottom.
                     guard scrollToBottom(in: view) else { return next() }

@@ -61,7 +61,7 @@ Set each client's **Window Mode** to **Fixed Window** in EVE's Display settings.
 Settings → **Cycle Groups**:
 
 1. Click **+** to add a group and give it a name (e.g. "DPS", "Logi").
-2. Click the **Next client** button and press a key. Do the same for **Previous client**. Esc cancels, ⌫ clears. F13–F20 are good choices if you bind them to mouse or keypad buttons.
+2. Click the **Next client** button and press a key. Do the same for **Previous client**. Esc cancels, ⌫ clears. F13 and F16–F19 are good choices if you bind them to mouse or keypad buttons. Avoid F14 and F15, which macOS uses for screen brightness. EVESup warns when a key you pick is also a macOS shortcut.
    - **Mouse side buttons** work too: while the button says "Press key or button…", click the side button with the pointer over the settings window. It shows up as "Mouse 4" or "Mouse 5". Allow **Accessibility** in General so EVE doesn't also receive the click.
 3. Add characters with **Add Character**, **Add All Logged-In**, or by typing a name. Use the arrows to set the order.
 

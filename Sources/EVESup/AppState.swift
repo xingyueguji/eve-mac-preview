@@ -19,9 +19,10 @@ final class AppState: ObservableObject {
     let configURL: URL
     let isFirstLaunch: Bool
     private(set) var previews: PreviewManager?
-    private(set) lazy var syncModel = SyncModel(state: self)
+    private(set) lazy var syncModel = SyncModel(state: self, settingsRoot: eveSettingsRoot)
     private(set) lazy var updater = Updater(state: self, feed: updateFeed)
     private let updateFeed: URL
+    private let eveSettingsRoot: URL
 
     private var saveWork: DispatchWorkItem?
     private var hotkeySuspensions = 0
@@ -29,10 +30,11 @@ final class AppState: ObservableObject {
     private var monitorForwarding: AnyCancellable?
     private var updaterForwarding: AnyCancellable?
 
-    init(configURL: URL, updateFeed: URL = Updater.defaultFeed) {
+    init(configURL: URL, updateFeed: URL = Updater.defaultFeed, eveSettingsRoot: URL = EVESettingsStore.defaultRoot) {
         let loaded = ConfigStore.load(from: configURL)
         self.configURL = configURL
         self.updateFeed = updateFeed
+        self.eveSettingsRoot = eveSettingsRoot
         self.config = loaded.config
         self.isFirstLaunch = !loaded.existed
         self.monitor = ClientMonitor(extraApps: Set(loaded.config.clientBundleIDs))
@@ -128,6 +130,8 @@ final class AppState: ObservableObject {
 
         var issues: [String: String] = [:]
         var owners: [Hotkey: String] = [:]
+        let symbolic = CFPreferencesCopyAppValue("AppleSymbolicHotKeys" as CFString, "com.apple.symbolichotkeys" as CFString)
+        let systemShortcuts = SystemShortcuts.enabled(in: symbolic as? [String: Any])
 
         func bind(_ hotkey: Hotkey?, id: String, owner: String, variants: Bool, action: @escaping () -> Void) {
             guard let hotkey else { return }
@@ -143,6 +147,11 @@ final class AppState: ObservableObject {
                     owners[combo] = owner
                 } else if index == 0 {
                     issues[id] = "macOS or another app already uses this key"
+                }
+                // macOS lets apps claim its own shortcuts (F14 and F15 dim and brighten the
+                // display), and then the key does both jobs or neither, so say so.
+                if index == 0, issues[id] == nil, let shortcut = systemShortcuts[combo] {
+                    issues[id] = "macOS also uses this key for “\(shortcut)”. Pick another key, or turn that shortcut off in System Settings → Keyboard → Keyboard Shortcuts."
                 }
             }
             if hotkey.isMouseButton, issues[id] == nil, !mouse.hidesClicksFromApps {

@@ -15,7 +15,12 @@ final class PreviewManager {
     private var capturedSourceSizes: [pid_t: CGSize] = [:]
     private var pendingCaptures = Set<pid_t>()
     private var hiddenByUser = Set<pid_t>()
+    /// Previews that are currently hidden; their streams run at 1 fps instead of the full rate.
+    private var throttledPIDs = Set<pid_t>()
     private var retryScheduled = false
+    /// Seconds until the next attempt to start previews that failed. Doubles each time,
+    /// up to a minute, because every attempt asks macOS for the list of all windows.
+    private var retryDelay: TimeInterval = 3
     private var cachedLabel: (style: NameLabelStyle, appearance: ThumbnailView.LabelAppearance)?
 
     init(state: AppState) {
@@ -166,6 +171,7 @@ final class PreviewManager {
 
     private func removePanel(_ pid: pid_t) {
         stopCapture(pid)
+        throttledPIDs.remove(pid)
         panels[pid]?.orderOut(nil)
         panels[pid]?.close()
         panels[pid] = nil
@@ -190,7 +196,20 @@ final class PreviewManager {
             panel.thumbnailView.isLocked = settings.locksPositions
             panel.thumbnailView.snapGrid = grid
             panel.thumbnailView.setLabelAppearance(label)
+            setThrottled(pid, !visible)
         }
+    }
+
+    /// A hidden preview keeps a trickle of frames, so it's current when it reappears,
+    /// without the cost of capturing at full rate.
+    private func setThrottled(_ pid: pid_t, _ throttled: Bool) {
+        guard throttledPIDs.contains(pid) != throttled else { return }
+        if throttled { throttledPIDs.insert(pid) } else { throttledPIDs.remove(pid) }
+        reconfigureCapture(pid)
+    }
+
+    private func frameRate(for pid: pid_t) -> Double {
+        throttledPIDs.contains(pid) ? 1 : settings.framesPerSecond
     }
 
     private func labelAppearance() -> ThumbnailView.LabelAppearance {
@@ -312,15 +331,14 @@ final class PreviewManager {
         do {
             content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         } catch {
-            Log.warn("couldn't list windows for previews: \(error.localizedDescription)")
-            scheduleRetry()
+            scheduleRetry("couldn't list windows for previews: \(error.localizedDescription)")
             return
         }
 
         for client in clients {
             guard let panel = panels[client.pid] else { continue }
             guard let window = content.windows.first(where: { $0.windowID == client.windowID }) else {
-                scheduleRetry()
+                scheduleRetry("\(client.label)'s window can't be captured right now")
                 continue
             }
             let capture = WindowCapture()
@@ -331,12 +349,11 @@ final class PreviewManager {
                     window: window,
                     pointSize: panel.frame.size,
                     scale: panel.backingScaleFactor,
-                    fps: settings.framesPerSecond
+                    fps: frameRate(for: client.pid)
                 )
             } catch {
-                Log.warn("preview capture failed for \(client.label): \(error.localizedDescription)")
                 panel.thumbnailView.setMessage("Preview unavailable")
-                scheduleRetry()
+                scheduleRetry("preview capture failed for \(client.label): \(error.localizedDescription)")
                 continue
             }
             // The client may have quit while the stream was starting.
@@ -347,6 +364,7 @@ final class PreviewManager {
             captures[client.pid] = capture
             capturedWindowIDs[client.pid] = client.windowID
             capturedSourceSizes[client.pid] = window.frame.size
+            retryDelay = 3
         }
     }
 
@@ -355,15 +373,14 @@ final class PreviewManager {
         guard let capture = captures[pid], let panel = panels[pid] else { return }
         let sourceSize = state.monitor.client(pid: pid)?.frame.size ?? capturedSourceSizes[pid] ?? .zero
         capturedSourceSizes[pid] = sourceSize
-        capture.update(pointSize: panel.frame.size, sourceSize: sourceSize, scale: panel.backingScaleFactor, fps: settings.framesPerSecond)
+        capture.update(pointSize: panel.frame.size, sourceSize: sourceSize, scale: panel.backingScaleFactor, fps: frameRate(for: pid))
     }
 
     private func captureStopped(pid: pid_t, error: Error) {
-        Log.info("preview stream for pid \(pid) stopped: \(error.localizedDescription)")
         captures[pid] = nil
         capturedWindowIDs[pid] = nil
         capturedSourceSizes[pid] = nil
-        scheduleRetry()
+        scheduleRetry("preview stream for pid \(pid) stopped: \(error.localizedDescription)")
     }
 
     private func stopCapture(_ pid: pid_t) {
@@ -373,10 +390,13 @@ final class PreviewManager {
         capturedSourceSizes[pid] = nil
     }
 
-    private func scheduleRetry() {
+    private func scheduleRetry(_ reason: String) {
         guard !retryScheduled else { return }
         retryScheduled = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+        let delay = retryDelay
+        retryDelay = min(retryDelay * 2, 60)
+        Log.info("\(reason); trying again in \(Int(delay)) s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             MainActor.assumeIsolated {
                 self?.retryScheduled = false
                 self?.update()
